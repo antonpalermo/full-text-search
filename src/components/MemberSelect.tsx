@@ -69,11 +69,18 @@ export function MemberSelect({ users }: MemberSelectProps) {
   }
 
   const onInputChange = (query: string) => {
-    setIsOpen.on()
-
     if (query === '') {
       setIsOpen.off()
+    } else {
+      setIsOpen.on()
     }
+
+    if (!users) {
+      return
+    }
+
+    const matchedUser = users.filter(e => e.name.includes(query))
+    setFilteredUsers(matchedUser)
   }
 
   return (
@@ -107,16 +114,8 @@ export function MemberSelect({ users }: MemberSelectProps) {
               </Form>
             )}
           </Formik>
-          <Box
-            position="relative"
-            mt={3}
-            css={{
-              '& > .chakra-popover__popper': {
-                position: 'relative'
-              }
-            }}
-          >
-            <PopoverContent>
+          <Box position="relative" mt={3}>
+            <PopoverContent style={{ width: '100%' }}>
               <PopoverBody
                 overflowY="auto"
                 maxH="sm"
@@ -130,7 +129,7 @@ export function MemberSelect({ users }: MemberSelectProps) {
                   }
                 }}
               >
-                {users.map(user => (
+                {filteredUsers.map(user => (
                   <MemberCard
                     mt={2}
                     key={user.id}
