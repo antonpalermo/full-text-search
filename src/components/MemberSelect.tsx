@@ -1,4 +1,4 @@
-import React, { ReactElement, ReactNode, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Box,
   FormLabel,
@@ -6,7 +6,6 @@ import {
   Heading,
   Text,
   Avatar,
-  AvatarProps,
   Stack,
   StackProps,
   useColorModeValue,
@@ -15,10 +14,14 @@ import {
   PopoverBody,
   useBoolean,
   Spacer,
-  Button
+  Button,
+  IconButton,
+  PopoverAnchor
 } from '@chakra-ui/react'
-import { Form, Formik, FormikProps } from 'formik'
+import { Form, Formik } from 'formik'
 import { BiUserCircle } from 'react-icons/bi'
+
+import { BiX } from 'react-icons/bi'
 
 export interface User {
   name: string
@@ -28,25 +31,49 @@ export interface User {
 
 export interface MemberCardProps extends StackProps {
   name?: string
+  removable?: boolean
+  isSelected?: boolean
+  onRemove?: () => void
 }
 
-export function MemberCard({ name, ...props }: MemberCardProps) {
+export function MemberCard({
+  name,
+  removable,
+  onRemove,
+  ...props
+}: MemberCardProps) {
   return (
     <Stack
       direction="row"
       alignItems={'center'}
       shadow="xs"
-      bg={useColorModeValue('gray.100', 'gray.800')}
+      bg={
+        props.isSelected
+          ? useColorModeValue('green.100', 'green.800')
+          : useColorModeValue('gray.100', 'gray.800')
+      }
       rounded="lg"
-      py={2}
       px={3}
+      py={2}
+      minW="md"
       {...props}
       cursor="pointer"
     >
       <Avatar icon={<BiUserCircle fontSize="1.8rem" />} />
       <Text fontWeight={'medium'}>{name}</Text>
       <Spacer />
-      <Button>Close</Button>
+      {removable && (
+        <IconButton
+          icon={<BiX fontSize={20} />}
+          aria-label={'removed user'}
+          onClick={onRemove}
+        />
+      )}
+      {props.isSelected && (
+        <Text color={'green.500'} fontWeight="medium">
+          Added
+        </Text>
+      )}
     </Stack>
   )
 }
@@ -59,6 +86,14 @@ export function MemberSelect({ users }: MemberSelectProps) {
   const [isOpen, setIsOpen] = useBoolean(false)
   const [filteredUsers, setFilteredUsers] = useState<User[]>(users)
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
+  const queryInputRef = useRef<HTMLInputElement>()
+
+  useEffect(() => {
+    queryInputRef.current.addEventListener('blur', () => setIsOpen.off())
+    return () => {
+      queryInputRef.current.removeEventListener('blur', () => setIsOpen.off())
+    }
+  }, [])
 
   const data = {
     query: ''
@@ -83,6 +118,15 @@ export function MemberSelect({ users }: MemberSelectProps) {
     setFilteredUsers(matchedUser)
   }
 
+  const handleUserRemove = (user: User) => {
+    const users = selectedUsers
+    const index = Array.from(users).indexOf(user)
+    if (index !== -1) {
+      users.splice(index, 1)
+      setSelectedUsers([...users])
+    }
+  }
+
   return (
     <Box minW="lg" maxW="md" my={10}>
       <Heading as="h4" size="md" mb={5}>
@@ -100,17 +144,20 @@ export function MemberSelect({ users }: MemberSelectProps) {
           <Formik initialValues={data} onSubmit={() => {}}>
             {({ values, handleChange }) => (
               <Form>
-                <FormLabel htmlFor="query">Select Members</FormLabel>
-                <Input
-                  id="query"
-                  type="text"
-                  value={values.query}
-                  onChange={e => {
-                    handleChange(e)
-                    onInputChange(e.target.value)
-                  }}
-                  autoComplete={'off'}
-                />
+                <FormLabel htmlFor="query">Search Members</FormLabel>
+                <PopoverAnchor>
+                  <Input
+                    id="query"
+                    type="text"
+                    ref={queryInputRef}
+                    value={values.query}
+                    onChange={e => {
+                      handleChange(e)
+                      onInputChange(e.target.value)
+                    }}
+                    autoComplete={'off'}
+                  />
+                </PopoverAnchor>
               </Form>
             )}
           </Formik>
@@ -118,7 +165,8 @@ export function MemberSelect({ users }: MemberSelectProps) {
             <PopoverContent style={{ width: '100%' }}>
               <PopoverBody
                 overflowY="auto"
-                maxH="sm"
+                maxH="xs"
+                py={3}
                 css={{
                   '&::-webkit-scrollbar': { width: '4px' },
                   '&::-webkit-scrollbar-track': {
@@ -129,22 +177,47 @@ export function MemberSelect({ users }: MemberSelectProps) {
                   }
                 }}
               >
-                {filteredUsers.map(user => (
-                  <MemberCard
-                    mt={2}
-                    key={user.id}
-                    name={user.name}
-                    onClick={() => handleSelectedUser(user)}
-                  />
-                ))}
+                <Stack spacing={2}>
+                  {filteredUsers.length === 0 ? (
+                    <Text
+                      px={3}
+                      py={2}
+                      minW="md"
+                      maxW="md"
+                      textAlign="center"
+                      fontWeight="medium"
+                    >
+                      No user matched your criteria
+                    </Text>
+                  ) : (
+                    filteredUsers.map(user => (
+                      <MemberCard
+                        key={user.id}
+                        name={user.name}
+                        onClick={() => handleSelectedUser(user)}
+                      />
+                    ))
+                  )}
+                </Stack>
               </PopoverBody>
             </PopoverContent>
           </Box>
         </Popover>
         <Box mt={5}>
-          {selectedUsers.map(user => (
-            <MemberCard mt={2} key={user.id} name={user.name} spacing={6} />
-          ))}
+          <Heading as="h4" fontSize="md" mb="5">
+            Selected Members
+          </Heading>
+          <Stack spacing="2">
+            {selectedUsers.map(user => (
+              <MemberCard
+                key={user.id}
+                name={user.name}
+                spacing={6}
+                removable
+                onRemove={() => handleUserRemove(user)}
+              />
+            ))}
+          </Stack>
         </Box>
       </Box>
     </Box>
